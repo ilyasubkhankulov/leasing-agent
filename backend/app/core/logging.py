@@ -15,6 +15,13 @@ def setup_logging(level: Optional[str] = None) -> None:
         handlers=[logging.StreamHandler(sys.stdout)],
         force=True,
     )
+    
+    # Reduce noise from third-party libraries
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

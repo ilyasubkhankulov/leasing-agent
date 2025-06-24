@@ -23,8 +23,7 @@ class BaseRepository(Generic[ModelType]):
     async def create(self, db: AsyncSession, obj_in: Dict[str, Any]) -> ModelType:
         db_obj = self.model(**obj_in)
         db.add(db_obj)
-        await db.commit()
-        await db.refresh(db_obj)
+        await db.flush()
         return db_obj
 
     async def update(self, db: AsyncSession, id: str, obj_in: Dict[str, Any]) -> Optional[ModelType]:
@@ -36,8 +35,7 @@ class BaseRepository(Generic[ModelType]):
             if hasattr(db_obj, field):
                 setattr(db_obj, field, value)
         
-        await db.commit()
-        await db.refresh(db_obj)
+        await db.flush()
         return db_obj
 
     async def delete(self, db: AsyncSession, id: str) -> bool:
@@ -46,7 +44,7 @@ class BaseRepository(Generic[ModelType]):
             return False
         
         await db.delete(db_obj)
-        await db.commit()
+        await db.flush()
         return True
 
     async def get_by_field(self, db: AsyncSession, field: str, value: Any) -> Optional[ModelType]:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -13,6 +13,23 @@ class LeadRepository(BaseRepository[Lead]):
 
     async def get_by_email(self, db: AsyncSession, email: str) -> Optional[Lead]:
         return await self.get_by_field(db, "email", email)
+
+    async def create_or_get_by_email(self, db: AsyncSession, lead_data: Dict[str, Any]) -> Lead:
+        existing_lead = await self.get_by_email(db, lead_data["email"])
+        if existing_lead:
+            update_data = {k: v for k, v in lead_data.items() if k != "email"}
+            if update_data:
+                for field, value in update_data.items():
+                    if hasattr(existing_lead, field):
+                        setattr(existing_lead, field, value)
+                db.add(existing_lead)
+                await db.flush()
+            return existing_lead
+        else:
+            lead = Lead(**lead_data)
+            db.add(lead)
+            await db.flush()
+            return lead
 
     async def get_with_conversations(self, db: AsyncSession, lead_id: str) -> Optional[Lead]:
         result = await db.execute(

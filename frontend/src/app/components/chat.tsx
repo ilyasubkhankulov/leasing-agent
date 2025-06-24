@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react'
 interface Lead {
   name: string
   email: string
+  phone?: string
 }
 
 interface Preferences {
@@ -41,10 +42,11 @@ export default function Chat() {
   const [communities, setCommunities] = useState<Community[]>([])
   const [loadingCommunities, setLoadingCommunities] = useState(true)
   
-  const [lead] = useState<Lead>({
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@email.com'
-  })
+  const [leadName, setLeadName] = useState('')
+  const [leadEmail, setLeadEmail] = useState('')
+  const [leadPhone, setLeadPhone] = useState('')
+  const [leadId, setLeadId] = useState('')
+  const [conversationId, setConversationId] = useState('')
   
   const [selectedCommunityId, setSelectedCommunityId] = useState('')
   const [bedrooms, setBedrooms] = useState(1)
@@ -64,7 +66,6 @@ export default function Chat() {
   useEffect(() => {
     fetchCommunities()
     
-    // Set default move-in date to 30 days from now
     const defaultDate = new Date()
     defaultDate.setDate(defaultDate.getDate() + 30)
     setMoveInDate(defaultDate.toISOString().split('T')[0])
@@ -87,9 +88,48 @@ export default function Chat() {
     }
   }
 
-  const startChat = () => {
-    if (!selectedCommunityId || !moveInDate) return
-    setIsSetupComplete(true)
+  const startChat = async () => {
+    if (!selectedCommunityId || !moveInDate || !leadName.trim() || !leadEmail.trim()) return
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/chat/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lead: {
+            name: leadName,
+            email: leadEmail,
+            phone: leadPhone || null
+          },
+          preferences: {
+            bedrooms,
+            move_in: moveInDate
+          },
+          community_id: selectedCommunityId
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLeadId(data.lead_id)
+        setConversationId(data.conversation_id)
+        
+        const welcomeMessage: Message = {
+          id: Date.now().toString(),
+          content: data.message,
+          sender: 'agent',
+          timestamp: new Date()
+        }
+        setMessages([welcomeMessage])
+        setIsSetupComplete(true)
+      } else {
+        console.error('Error starting chat:', response.statusText)
+      }
+    } catch (error) {
+      console.error('Error starting chat:', error)
+    }
   }
 
   const sendMessage = async () => {
@@ -119,21 +159,15 @@ export default function Chat() {
     currentStreamingMessageRef.current = ''
 
     try {
-      const preferences: Preferences = {
-        bedrooms,
-        move_in: moveInDate
-      }
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/chat/reply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lead,
-          message: currentMessage,
-          preferences,
-          community_id: selectedCommunityId
+          lead_id: leadId,
+          conversation_id: conversationId,
+          message: currentMessage
         })
       })
 
@@ -213,7 +247,7 @@ export default function Chat() {
       <div className="flex flex-col h-screen max-w-4xl mx-auto bg-white">
         <div className="bg-blue-600 text-white p-4">
           <h1 className="text-xl font-semibold">Leasing Agent Chat</h1>
-          <p className="text-blue-100 text-sm">Set your preferences to start chatting</p>
+          <p className="text-blue-100 text-sm">Fill out your information to start chatting</p>
         </div>
 
         <div className="flex-1 flex items-center justify-center p-8">
@@ -226,7 +260,46 @@ export default function Chat() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Community
+                    Your Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={leadName}
+                    onChange={(e) => setLeadName(e.target.value)}
+                    placeholder="Enter your full name"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    value={leadEmail}
+                    onChange={(e) => setLeadEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number (Optional)
+                  </label>
+                  <input
+                    type="tel"
+                    value={leadPhone}
+                    onChange={(e) => setLeadPhone(e.target.value)}
+                    placeholder="Enter your phone number"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Community *
                   </label>
                   <select
                     value={selectedCommunityId}
@@ -246,7 +319,7 @@ export default function Chat() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Bedrooms
+                    Number of Bedrooms *
                   </label>
                   <select
                     value={bedrooms}
@@ -262,7 +335,7 @@ export default function Chat() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Preferred Move-in Date
+                    Preferred Move-in Date *
                   </label>
                   <input
                     type="date"
@@ -274,7 +347,7 @@ export default function Chat() {
 
                 <button
                   onClick={startChat}
-                  disabled={!selectedCommunityId || !moveInDate}
+                  disabled={!selectedCommunityId || !moveInDate || !leadName.trim() || !leadEmail.trim()}
                   className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
                 >
                   Start Chat
@@ -292,7 +365,7 @@ export default function Chat() {
       <div className="bg-blue-600 text-white p-4">
         <h1 className="text-xl font-semibold">Leasing Agent Chat</h1>
         <p className="text-blue-100 text-sm">
-          Chatting as {lead.name} • {selectedCommunity?.name} • {bedrooms}-bedroom • Move-in: {moveInDate}
+          Chatting as {leadName} • {selectedCommunity?.name} • {bedrooms}-bedroom • Move-in: {moveInDate}
         </p>
       </div>
 
