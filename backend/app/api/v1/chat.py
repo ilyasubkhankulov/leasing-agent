@@ -1,10 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, List
 from datetime import datetime
 import json
 import asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+from db.database import get_db_session
+from db.repository import CommunityRepository
+from services.llm import handle_lead_inquiry
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -37,40 +41,82 @@ class StreamEvent(BaseModel):
     data: dict
 
 
-async def generate_leasing_response(request: ReplyRequest) -> AsyncGenerator[str, None]:
-    mock_response_parts = [
-        f"Hi {request.lead.name}! ",
-        "Thanks for your interest in our ",
-        f"{request.preferences.bedrooms}-bedroom units. ",
-        "I have great news - we have several available units that match your criteria! ",
-        "Unit 12B is perfect and includes all modern amenities. ",
-        "We welcome pets with just a one-time $50 fee. ",
-        f"For your move-in date of {request.preferences.move_in}, ",
-        "we can schedule a tour this Saturday between 10 AM and 2 PM. ",
-        "Would 11 AM work for you?"
-    ]
+class CommunityResponse(BaseModel):
+    id: str
+    name: str
+    address: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+
+@router.get("/communities", response_model=List[CommunityResponse])
+async def get_communities(db: AsyncSession = Depends(get_db_session)):
+    community_repo = CommunityRepository()
+    communities = await community_repo.get_all(db)
     
+    return [
+        CommunityResponse(
+            id=community.id,
+            name=community.name,
+            address=community.address,
+            phone=community.phone,
+            email=community.email
+        )
+        for community in communities
+    ]
+
+
+async def generate_leasing_response(request: ReplyRequest, db: AsyncSession) -> AsyncGenerator[str, None]:
     try:
-        full_response = ""
+        inquiry_data = {
+            "lead": {
+                "name": request.lead.name,
+                "email": request.lead.email
+            },
+            "message": request.message,
+            "preferences": {
+                "bedrooms": request.preferences.bedrooms,
+                "move_in": request.preferences.move_in
+            },
+            "community_id": request.community_id
+        }
         
-        for part in mock_response_parts:
-            full_response += part
+        action_response = await handle_lead_inquiry(db, inquiry_data)
+        
+        words = action_response.response_text.split()
+        current_chunk = ""
+        
+        for i, word in enumerate(words):
+            current_chunk += word + " "
             
-            event = StreamEvent(
-                type="content_delta",
-                data={"content": part}
-            )
-            yield f"data: {event.model_dump_json()}\n\n"
-            
-            await asyncio.sleep(0.1)
+            if len(current_chunk.split()) >= 4 or i == len(words) - 1:
+                event = StreamEvent(
+                    type="content_delta",
+                    data={"content": current_chunk}
+                )
+                yield f"data: {event.model_dump_json()}\n\n"
+                current_chunk = ""
+                await asyncio.sleep(0.1)
         
         action_data = {
-            "action": "propose_tour",
-            "tour_time": "11:00 AM",
-            "tour_date": "2025-01-18",
-            "unit_id": "12B",
-            "confirmation_required": True
+            "action": action_response.action_type
         }
+        
+        if action_response.action_type == "propose_tour":
+            action_data.update({
+                "tour_time": action_response.tour_time,
+                "tour_date": action_response.tour_date,
+                "unit_id": action_response.unit_id,
+                "confirmation_required": action_response.confirmation_required or True
+            })
+        elif action_response.action_type == "ask_clarification":
+            action_data.update({
+                "clarification_needed": action_response.clarification_needed
+            })
+        elif action_response.action_type == "handoff_human":
+            action_data.update({
+                "follow_up": True
+            })
         
         event = StreamEvent(
             type="action_determined",
@@ -80,7 +126,7 @@ async def generate_leasing_response(request: ReplyRequest) -> AsyncGenerator[str
         
         event = StreamEvent(
             type="response_complete",
-            data={"reply": full_response, **action_data}
+            data={"reply": action_response.response_text, **action_data}
         )
         yield f"data: {event.model_dump_json()}\n\n"
         
@@ -93,9 +139,9 @@ async def generate_leasing_response(request: ReplyRequest) -> AsyncGenerator[str
 
 
 @router.post("/reply")
-async def reply_stream(request: ReplyRequest):
+async def reply_stream(request: ReplyRequest, db: AsyncSession = Depends(get_db_session)):
     return StreamingResponse(
-        generate_leasing_response(request),
+        generate_leasing_response(request, db),
         media_type="text/plain",
         headers={
             "Cache-Control": "no-cache",

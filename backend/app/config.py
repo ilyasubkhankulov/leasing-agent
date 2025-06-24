@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     DATABASE_URL: PostgresDsn
     FRONTEND_URL: str
     OPENAI_API_KEY: str
+    OPENAI_MODEL: str = Field(default="gpt-4.1")
     
 
     class Config:

@@ -12,6 +12,14 @@ interface Preferences {
   move_in: string
 }
 
+interface Community {
+  id: string
+  name: string
+  address: string
+  phone?: string
+  email?: string
+}
+
 interface Message {
   id: string
   content: string
@@ -29,14 +37,18 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [currentMessage, setCurrentMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isSetupComplete, setIsSetupComplete] = useState(false)
+  const [communities, setCommunities] = useState<Community[]>([])
+  const [loadingCommunities, setLoadingCommunities] = useState(true)
+  
   const [lead] = useState<Lead>({
     name: 'Sarah Johnson',
     email: 'sarah.johnson@email.com'
   })
-  const [preferences] = useState<Preferences>({
-    bedrooms: 2,
-    move_in: '2025-02-01'
-  })
+  
+  const [selectedCommunityId, setSelectedCommunityId] = useState('')
+  const [bedrooms, setBedrooms] = useState(1)
+  const [moveInDate, setMoveInDate] = useState('')
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const currentStreamingMessageRef = useRef<string>('')
@@ -48,6 +60,37 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    fetchCommunities()
+    
+    // Set default move-in date to 30 days from now
+    const defaultDate = new Date()
+    defaultDate.setDate(defaultDate.getDate() + 30)
+    setMoveInDate(defaultDate.toISOString().split('T')[0])
+  }, [])
+
+  const fetchCommunities = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/chat/communities`)
+      if (response.ok) {
+        const data = await response.json()
+        setCommunities(data)
+        if (data.length > 0) {
+          setSelectedCommunityId(data[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching communities:', error)
+    } finally {
+      setLoadingCommunities(false)
+    }
+  }
+
+  const startChat = () => {
+    if (!selectedCommunityId || !moveInDate) return
+    setIsSetupComplete(true)
+  }
 
   const sendMessage = async () => {
     if (!currentMessage.trim() || isLoading) return
@@ -76,6 +119,11 @@ export default function Chat() {
     currentStreamingMessageRef.current = ''
 
     try {
+      const preferences: Preferences = {
+        bedrooms,
+        move_in: moveInDate
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/chat/reply`, {
         method: 'POST',
         headers: {
@@ -85,7 +133,7 @@ export default function Chat() {
           lead,
           message: currentMessage,
           preferences,
-          community_id: 'community_123'
+          community_id: selectedCommunityId
         })
       })
 
@@ -158,12 +206,93 @@ export default function Chat() {
     }
   }
 
+  const selectedCommunity = communities.find(c => c.id === selectedCommunityId)
+
+  if (!isSetupComplete) {
+    return (
+      <div className="flex flex-col h-screen max-w-4xl mx-auto bg-white">
+        <div className="bg-blue-600 text-white p-4">
+          <h1 className="text-xl font-semibold">Leasing Agent Chat</h1>
+          <p className="text-blue-100 text-sm">Set your preferences to start chatting</p>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="w-full max-w-md space-y-6">
+            <h2 className="text-2xl font-bold text-center text-gray-800">Get Started</h2>
+            
+            {loadingCommunities ? (
+              <div className="text-center text-gray-600">Loading communities...</div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Community
+                  </label>
+                  <select
+                    value={selectedCommunityId}
+                    onChange={(e) => setSelectedCommunityId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {communities.map((community) => (
+                      <option key={community.id} value={community.id}>
+                        {community.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedCommunity && (
+                    <p className="text-sm text-gray-600 mt-1">{selectedCommunity.address}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Number of Bedrooms
+                  </label>
+                  <select
+                    value={bedrooms}
+                    onChange={(e) => setBedrooms(parseInt(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={1}>1 Bedroom</option>
+                    <option value={2}>2 Bedrooms</option>
+                    <option value={3}>3 Bedrooms</option>
+                    <option value={4}>4+ Bedrooms</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preferred Move-in Date
+                  </label>
+                  <input
+                    type="date"
+                    value={moveInDate}
+                    onChange={(e) => setMoveInDate(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <button
+                  onClick={startChat}
+                  disabled={!selectedCommunityId || !moveInDate}
+                  className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                >
+                  Start Chat
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto bg-white">
       <div className="bg-blue-600 text-white p-4">
         <h1 className="text-xl font-semibold">Leasing Agent Chat</h1>
         <p className="text-blue-100 text-sm">
-          Chatting as {lead.name} • Looking for {preferences.bedrooms}-bedroom • Move-in: {preferences.move_in}
+          Chatting as {lead.name} • {selectedCommunity?.name} • {bedrooms}-bedroom • Move-in: {moveInDate}
         </p>
       </div>
 
