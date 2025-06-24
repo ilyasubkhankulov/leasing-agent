@@ -22,6 +22,12 @@ flake8-pyproject = "^1.2.3"
 alembic = "^1.16.2"
 openai = "^1.91.0"
 
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.4"
+pytest-asyncio = "^0.24.0"
+pytest-mock = "^3.14.0"
+httpx = "^0.28.1"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
@@ -29,4 +35,11 @@ build-backend = "poetry.core.masonry.api"
 [tool.flake8]
 max-line-length = 120
 ignore = ["E203", "E501", "W503", "F401", "E731"]
-exclude = [".git", "__pycache__", ".venv", "migrations"]
+exclude = [".git", "__pycache__", ".venv", "migrations", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"

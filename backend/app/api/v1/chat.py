@@ -200,7 +200,8 @@ async def generate_leasing_response(request: ReplyRequest) -> AsyncGenerator[str
             update_data = {
                 "reply_text": action_response.response_text,
                 "action": action_response.action_type,
-                "llm_latency_ms": int(processing_time * 1000)
+                "llm_latency_ms": int(processing_time * 1000),
+                "llm_tokens_used": action_response.tokens_used
             }
             
             if action_response.action_type == "propose_tour" and action_response.tour_date and action_response.tour_time:
@@ -208,7 +209,21 @@ async def generate_leasing_response(request: ReplyRequest) -> AsyncGenerator[str
                     proposed_datetime = datetime.fromisoformat(f"{action_response.tour_date}T{action_response.tour_time}")
                     update_data["proposed_time"] = proposed_datetime
                 except ValueError:
-                    logger.warning(f"Failed to parse tour datetime: {action_response.tour_date}T{action_response.tour_time}")
+                    try:
+                        from datetime import datetime as dt
+                        time_str = action_response.tour_time.strip()
+                        date_str = action_response.tour_date.strip()
+                        
+                        if "AM" in time_str.upper() or "PM" in time_str.upper():
+                            datetime_str = f"{date_str} {time_str}"
+                            proposed_datetime = dt.strptime(datetime_str, "%Y-%m-%d %I:%M %p")
+                        else:
+                            datetime_str = f"{date_str}T{time_str}"
+                            proposed_datetime = dt.fromisoformat(datetime_str)
+                        
+                        update_data["proposed_time"] = proposed_datetime
+                    except ValueError as e:
+                        logger.warning(f"Failed to parse tour datetime: {action_response.tour_date}T{action_response.tour_time} - {e}")
             
             if hasattr(action_response, 'tools_called') and action_response.tools_called:
                 update_data["tools_called"] = action_response.tools_called
@@ -253,6 +268,11 @@ async def generate_leasing_response(request: ReplyRequest) -> AsyncGenerator[str
                     "follow_up": True
                 })
                 logger.info("Human handoff initiated")
+            elif action_response.action_type == "tour_confirmed":
+                action_data.update({
+                    "tour_confirmed": True
+                })
+                logger.info("Tour confirmation completed - conversation ending")
             
             event = StreamEvent(
                 type="action_determined",

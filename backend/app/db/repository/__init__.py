@@ -7,6 +7,7 @@ from .tour_slot import TourSlotRepository
 from .lead import LeadRepository
 from .conversation import ConversationRepository
 from .message import MessageRepository
+from .tool_call import ToolCallRepository
 
 __all__ = [
     "BaseRepository",
@@ -18,4 +19,5 @@ __all__ = [
     "LeadRepository",
     "ConversationRepository",
     "MessageRepository",
+    "ToolCallRepository",
 ]

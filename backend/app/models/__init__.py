@@ -20,6 +20,7 @@ class ActionType(str, PyEnum):
     PROPOSE_TOUR = "propose_tour"
     ASK_CLARIFICATION = "ask_clarification"
     HANDOFF_HUMAN = "handoff_human"
+    TOUR_CONFIRMED = "tour_confirmed"
 
 
 class PetType(str, PyEnum):
@@ -361,3 +362,40 @@ class Message(SQLModel, table=True):
     )
     
     conversation: Optional[Conversation] = Relationship(back_populates="messages")
+    
+class ToolCall(SQLModel, table=True):
+    __tablename__ = "tool_calls"
+    
+    id: str = Field(
+        primary_key=True,
+        index=True,
+        max_length=50,
+        sa_column_kwargs={"server_default": func.nanoid()},
+    )
+    function_name: str = Field(sa_column=SA_Column(SA_String(100), nullable=False, index=True))
+    arguments: dict = Field(sa_column=SA_Column(SA_JSONB, nullable=False))
+    response: dict = Field(sa_column=SA_Column(SA_JSONB, nullable=False))
+    execution_time_ms: int = Field(sa_column=SA_Column(SA_Integer, nullable=False))
+    success: bool = Field(sa_column=SA_Column(SA_Boolean, nullable=False))
+    error_message: Optional[str] = Field(
+        default=None, sa_column=SA_Column(SA_Text, nullable=True)
+    )
+    conversation_id: Optional[str] = Field(
+        default=None, 
+        sa_column=SA_Column(
+            SA_String(50), SA_ForeignKey("conversations.id"), nullable=True, index=True
+        )
+    )
+    request_id: Optional[str] = Field(
+        default=None, sa_column=SA_Column(SA_String(50), nullable=True, index=True)
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=SA_Column(
+            SA_DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+        ),
+    )
+    
+    conversation: Optional[Conversation] = Relationship()

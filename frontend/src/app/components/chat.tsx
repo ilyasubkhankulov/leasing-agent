@@ -2,17 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 
-interface Lead {
-  name: string
-  email: string
-  phone?: string
-}
-
-interface Preferences {
-  bedrooms: number
-  move_in: string
-}
-
 interface Community {
   id: string
   name: string
@@ -267,7 +256,7 @@ export default function Chat() {
                     value={leadName}
                     onChange={(e) => setLeadName(e.target.value)}
                     placeholder="Enter your full name"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
@@ -280,7 +269,7 @@ export default function Chat() {
                     value={leadEmail}
                     onChange={(e) => setLeadEmail(e.target.value)}
                     placeholder="Enter your email address"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
@@ -293,7 +282,7 @@ export default function Chat() {
                     value={leadPhone}
                     onChange={(e) => setLeadPhone(e.target.value)}
                     placeholder="Enter your phone number"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
@@ -304,7 +293,7 @@ export default function Chat() {
                   <select
                     value={selectedCommunityId}
                     onChange={(e) => setSelectedCommunityId(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {communities.map((community) => (
                       <option key={community.id} value={community.id}>
@@ -324,7 +313,7 @@ export default function Chat() {
                   <select
                     value={bedrooms}
                     onChange={(e) => setBedrooms(parseInt(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value={1}>1 Bedroom</option>
                     <option value={2}>2 Bedrooms</option>
@@ -341,7 +330,7 @@ export default function Chat() {
                     type="date"
                     value={moveInDate}
                     onChange={(e) => setMoveInDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
@@ -402,7 +391,7 @@ export default function Chat() {
             onChange={(e) => setCurrentMessage(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder="Type your message..."
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             rows={1}
             disabled={isLoading}
           />
