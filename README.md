@@ -1,51 +1,80 @@
-## Running locally
+# Leasing Agent
 
-## first, set up the database and run migrations
+## Setup
 
-#### set up database
+### Prerequisites
 
-copy `backend/.env.template` to `backend/.env`
+- Poetry (for backend)
+- Node.js and npm (for frontend)
+- PostgreSQL database
 
-set DATABASE_URL to your local postgres database
+### Database Setup
 
-#### run migrations
+1. **Configure environment**
 
-apply migration via `poetry run alembic upgrade head`
+   ```bash
+   cp backend/.env.template backend/.env
+   ```
 
-#### run seeds to populate database with dummy data
+   Set `DATABASE_URL` to your local PostgreSQL database in the `.env` file.
 
-`poetry run python manage.py seed`
+2. **Run migrations**
 
-#### creating new migrations after changing models.py
+   ```bash
+   cd backend
+   poetry run alembic upgrade head
+   ```
 
-`poetry run alembic revision --autogenerate -m 'MIGRATION_NAME'`
+3. **Seed database with dummy data**
+   ```bash
+   poetry run python manage.py seed
+   ```
 
-update the generated migration file and then apply migration via `poetry run alembic upgrade head`
+## Running the Application
 
-#### create empty migration
+### Backend
 
-`poetry run alembic revision -m "MIGRATION_NAME"`
+```bash
+cd backend
+poetry install
+poetry run fastapi dev app/main.py
+```
 
-apply migration via `poetry run alembic upgrade head`
+The backend will be available at `http://localhost:8000`
 
-## roll back migrations via `poetry run alembic downgrade base`
+### Frontend
 
-#### backend
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-prereq's: poetry
+## Database Migrations
 
-`cd backend`
+### Creating New Migrations
 
-`poetry install`
+**After modifying models:**
 
-`poetry run fastapi dev app/main.py`
+```bash
+poetry run alembic revision --autogenerate -m 'MIGRATION_NAME'
+```
 
-the backend should now be listening on 8000
+Review the generated migration file, then apply it:
 
-#### frontend
+```bash
+poetry run alembic upgrade head
+```
 
-`cd frontend`
+**Creating empty migration:**
 
-`npm i`
+```bash
+poetry run alembic revision -m "MIGRATION_NAME"
+poetry run alembic upgrade head
+```
 
-`npm run dev`
+### Rolling Back Migrations
+
+```bash
+poetry run alembic downgrade base
+```
