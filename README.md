@@ -78,3 +78,17 @@ poetry run alembic upgrade head
 ```bash
 poetry run alembic downgrade base
 ```
+
+## Run tests
+
+```bash
+cd backend
+```
+
+### Unit Tests
+
+**Run all tests:**
+
+```bash
+make test
+```
